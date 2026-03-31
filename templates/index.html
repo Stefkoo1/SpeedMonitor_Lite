@@ -1,265 +1,265 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpeedMonitor-Lite</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* --- CSS Variables for Light/Dark themes --- */
         :root {
-            --bg-color: #f4f4f9;
-            --text-color: #333;
-            --card-bg: #ffffff;
-            --shadow-color: rgba(0,0,0,0.1);
-            --accent-color: #007bff;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-down: #22c55e;
+            --accent-up: #3b82f6;
+            --accent-ping: #a855f7;
+            --btn-bg: #2563eb;
+            --btn-hover: #1d4ed8;
         }
 
-        body.dark-mode {
-            --bg-color: #121212;
-            --text-color: #e0e0e0;
-            --card-bg: #1e1e1e;
-            --shadow-color: rgba(0,0,0,0.5);
-            --accent-color: #3700b3;
+        body.light-mode {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --btn-bg: #3b82f6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-color);
-            text-align: center;
-            padding: 20px;
-            transition: background-color 0.3s, color 0.3s;
-            margin: 0;
+            color: var(--text-main);
+            transition: all 0.3s ease;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        /* --- Dark Mode Toggle (Top Right) --- */
-        .floating-top-right {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            font-size: 0.9em;
-            border-radius: 25px;
-            z-index: 100;
+        header {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
         }
 
-        .dashboard { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 40px auto 20px auto; max-width: 1100px; }
+        .theme-toggle {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 20px;
+            border: none;
+            background: var(--card-bg);
+            color: var(--text-main);
+            font-weight: 600;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 2rem;
+        }
 
         .card {
             background: var(--card-bg);
-            padding: 25px;
-            min-width: 200px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px var(--shadow-color);
-            transition: transform 0.2s;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
         }
-        .card:hover { transform: translateY(-3px); }
 
-        .value { font-size: 2.8em; font-weight: bold; margin-top: 10px; }
-        .download { color: #28a745; }
-        .upload { color: #007bff; }
-        .ping { color: #bb86fc; }
-
-        /* --- Buttons --- */
-        .btn { border: none; cursor: pointer; transition: 0.3s; text-decoration: none; display: inline-block; color: white; font-weight: bold; }
-
-        .btn-primary-large {
-            padding: 16px 45px;
-            font-size: 1.3em;
-            background-color: #007bff;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-            margin: 25px 0;
+        .card h3 {
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
         }
-        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.05); }
-        .btn-primary-large:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
 
-        .btn-secondary-sm {
-            padding: 8px 16px;
-            font-size: 0.85em;
-            background-color: #6c757d;
-            border-radius: 6px;
+        .card .value {
+            font-size: 3rem;
+            font-weight: 700;
         }
-        .btn-secondary-sm:hover { background-color: #5a6268; }
 
-        .btn-darkmode { background-color: #333; color: white; box-shadow: 0 4px 6px var(--shadow-color); }
-        body.dark-mode .btn-darkmode { background-color: #f4f4f9; color: #333; }
+        .download { color: var(--accent-down); }
+        .upload { color: var(--accent-up); }
+        .ping { color: var(--accent-ping); }
 
-        .time { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        .controls {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
 
-        /* --- Chart Section --- */
-        .chart-wrapper {
+        .btn {
+            background: var(--btn-bg);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 2rem;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.25rem;
+            transition: background 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover { background: var(--btn-hover); }
+
+        .chart-container {
             background: var(--card-bg);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px var(--shadow-color);
+            width: 100%;
             max-width: 1000px;
-            margin: 0 auto 50px auto;
-            height: 400px; /* Fixed height for better layout */
+            padding: 1.5rem;
+            border-radius: 1rem;
+            position: relative;
         }
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--shadow-color);
+            margin-bottom: 1rem;
         }
-        .chart-header h3 { margin: 0; font-size: 1.2em; }
+
+        .csv-btn {
+            background: #475569;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            text-decoration: none;
+        }
+
+        .last-update {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+        }
     </style>
 </head>
-<body>
-    <button class="btn btn-darkmode floating-top-right" onclick="toggleDarkMode()" id="darkModeBtn">🌙 Dark Mode</button>
+<body class="dark-mode">
 
-    <h1>SpeedMonitor-Lite</h1>
+    <header>
+        <h1>SpeedMonitor-Lite</h1>
+        <button class="theme-toggle" onclick="toggleTheme()">☀️ Light Mode</button>
+    </header>
 
-    {% if latest_data %}
-        <div class="dashboard">
-            <div class="card">
-                <h3>DOWNLOAD</h3>
-                <div class="value download">{{ latest_data.download }} Mbps</div>
-            </div>
-            <div class="card">
-                <h3>UPLOAD</h3>
-                <div class="value upload">{{ latest_data.upload }} Mbps</div>
-            </div>
-            <div class="card">
-                <h3>LATENCY</h3>
-                <div class="value ping">{{ latest_data.ping }} ms</div>
-            </div>
+    <div class="grid">
+        <div class="card">
+            <h3>Download</h3>
+            <div class="value download">{{ latest.download }} <span style="font-size: 1.5rem">Mbps</span></div>
         </div>
-        <div class="time">Last check: {{ latest_data.timestamp }}</div>
-
-        <button class="btn btn-primary-large" onclick="runTest()">Run Test Now</button>
-
-        <div class="chart-wrapper">
-            <div class="chart-header">
-                <h3>24h History</h3>
-                <a href="/api/download-csv" class="btn btn-secondary-sm">⬇️ Download CSV</a>
-            </div>
-            <canvas id="speedChart"></canvas>
+        <div class="card">
+            <h3>Upload</h3>
+            <div class="value upload">{{ latest.upload }} <span style="font-size: 1.5rem">Mbps</span></div>
         </div>
-
-    {% else %}
-        <div style="margin-top: 100px;">
-            <p>No data found. Please perform your first measurement.</p>
-            <button class="btn btn-primary-large" onclick="runTest()">Run Test Now</button>
+        <div class="card">
+            <h3>Latency</h3>
+            <div class="value ping">{{ latest.ping }} <span style="font-size: 1.5rem">ms</span></div>
         </div>
-    {% endif %}
+    </div>
+
+    <p class="last-update" style="margin-bottom: 1rem;">Last check: {{ latest.timestamp }}</p>
+
+    <div class="controls">
+        <form action="/run-test" method="post">
+            <button type="submit" class="btn">Run Test Now</button>
+        </form>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-header">
+            <h2>24h History</h2>
+            <a href="/download" class="csv-btn">⬇️ Download CSV</a>
+        </div>
+        <canvas id="speedChart"></canvas>
+    </div>
 
     <script>
-        // --- Theme Management ---
-        if (localStorage.getItem('darkMode') === 'enabled') {
-            document.body.classList.add('dark-mode');
-            updateDarkModeButton();
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'enabled' : 'disabled');
-            updateDarkModeButton();
-
-            // Redraw chart with new colors
-            if(window.myChart) {
-                window.myChart.destroy();
-                loadChart();
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.querySelector('.theme-toggle');
+            if (body.classList.contains('dark-mode')) {
+                body.classList.replace('dark-mode', 'light-mode');
+                btn.innerText = "🌙 Dark Mode";
+            } else {
+                body.classList.replace('light-mode', 'dark-mode');
+                btn.innerText = "☀️ Light Mode";
             }
         }
 
-        function updateDarkModeButton() {
-            const btn = document.getElementById('darkModeBtn');
-            if (btn) btn.innerText = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
-        }
+        // DATEN-VERARBEITUNG OHNE ZEITZONEN-SHIFT
+        const rawResults = [
+            {% for result in results %}
+            {
+                time: "{{ result[1] }}",
+                dl: {{ result[2] }},
+                ul: {{ result[3] }}
+            },
+            {% endfor %}
+        ];
 
-        // --- Speedtest Execution ---
-        async function runTest() {
-            const btn = document.querySelector('.btn-primary-large');
-            btn.innerText = "Testing... please wait";
-            btn.disabled = true;
-
-            try {
-                const response = await fetch('/api/run-test', { method: 'POST' });
-                const result = await response.json();
-                if(result.status === "success") window.location.reload();
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Test failed!");
-                btn.innerText = "Run Test Now";
-                btn.disabled = false;
+        // Wir extrahieren die Uhrzeit direkt aus dem String
+        const labels = rawResults.map(r => {
+            const parts = r.time.split(' ');
+            if (parts.length > 1) {
+                const hms = parts[1].split(':');
+                return hms[0] + ':' + hms[1]; // Gibt HH:MM zurück
             }
-        }
+            return r.time;
+        });
 
-        // --- Chart logic with "Bonus" cleaning ---
-        async function loadChart() {
-            try {
-                const response = await fetch('/api/history');
-                const result = await response.json();
-                const data = result.data;
+        const downloadData = rawResults.map(r => r.dl);
+        const uploadData = rawResults.map(r => r.ul);
 
-                const labels = data.map(item => {
-                    let date = new Date(item.timestamp);
-                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                });
-
-                const ctx = document.getElementById('speedChart').getContext('2d');
-                const isDark = document.body.classList.contains('dark-mode');
-                const chartTextColor = isDark ? '#e0e0e0' : '#666';
-                const chartGridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-
-                window.myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Download',
-                                data: data.map(item => item.download),
-                                borderColor: '#28a745',
-                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                                fill: true,
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Upload',
-                                data: data.map(item => item.upload),
-                                borderColor: '#007bff',
-                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                                fill: true,
-                                tension: 0.4
-                            }
-                        ]
+        const ctx = document.getElementById('speedChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Download',
+                        data: downloadData,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.4
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        color: chartTextColor,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: chartGridColor },
-                                ticks: { color: chartTextColor }
-                            },
-                            x: {
-                                grid: { display: false },
-                                ticks: {
-                                    color: chartTextColor,
-                                    maxRotation: 0,
-                                    autoSkip: true,
-                                    maxTicksLimit: 10
-                                }
-                            }
-                        },
-                        elements: { point: { radius: 3, hoverRadius: 6 } }
+                    {
+                        label: 'Upload',
+                        data: uploadData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
                     }
-                });
-            } catch (error) {
-                console.error("Error loading history:", error);
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+                    y: { ticks: { color: '#94a3b8' }, beginAtZero: true }
+                }
             }
-        }
-
-        window.onload = loadChart;
+        });
     </script>
 </body>
 </html>
