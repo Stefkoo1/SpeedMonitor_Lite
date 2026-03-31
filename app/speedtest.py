@@ -31,7 +31,6 @@ def run_speedtest():
     download, upload, ping = 0, 0, 0
 
     try:
-
         result = subprocess.run(
             ["ndt7-client", "-format=json"],
             capture_output=True,
@@ -39,11 +38,16 @@ def run_speedtest():
             timeout=90
         )
 
-
         for line in result.stdout.splitlines():
             if not line.strip(): continue
             try:
                 data = json.loads(line)
+
+
+                if 'Value' in data and isinstance(data['Value'], dict) and 'Failure' in data['Value']:
+                    print(f"M-Lab ERROR: {data['Value']['Failure']}")
+                    continue
+
                 if 'Download' in data and 'Throughput' in data['Download']:
                     download = round(data['Download']['Throughput']['Value'], 2)
                     upload = round(data['Upload']['Throughput']['Value'], 2)

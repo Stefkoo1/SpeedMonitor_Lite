@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- CSS Variablen für Themes --- */
+        /* --- CSS Variables for Light/Dark themes --- */
         :root {
             --bg-color: #f4f4f9;
             --text-color: #333;
@@ -34,6 +34,7 @@
             margin: 0;
         }
 
+        /* --- Dark Mode Toggle (Top Right) --- */
         .floating-top-right {
             position: absolute;
             top: 20px;
@@ -60,10 +61,11 @@
         .download { color: #28a745; }
         .upload { color: #007bff; }
         .ping { color: #bb86fc; }
+        .unit { font-size: 0.4em; color: #888; font-weight: normal; }
 
+        /* --- Buttons --- */
         .btn { border: none; cursor: pointer; transition: 0.3s; text-decoration: none; display: inline-block; color: white; font-weight: bold; }
 
-        /* Der Haupt-Button */
         .btn-primary-large {
             padding: 16px 45px;
             font-size: 1.3em;
@@ -71,16 +73,16 @@
             border-radius: 30px;
             box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
             margin: 25px 0;
-            min-width: 300px;
+            min-width: 280px;
         }
-        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.02); }
+        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.05); }
 
-        /* Zustand wenn gesperrt (ausgegraut) */
+        /* Locked state styling */
         .btn-primary-large:disabled {
-            background-color: #6c757d !important;
-            opacity: 0.6;
+            background-color: #6c757d;
             cursor: not-allowed;
             transform: none;
+            opacity: 0.7;
             box-shadow: none;
         }
 
@@ -90,12 +92,14 @@
             background-color: #6c757d;
             border-radius: 6px;
         }
+        .btn-secondary-sm:hover { background-color: #5a6268; }
 
-        .btn-darkmode { background-color: #333; color: white; }
+        .btn-darkmode { background-color: #333; color: white; box-shadow: 0 4px 6px var(--shadow-color); }
         body.dark-mode .btn-darkmode { background-color: #f4f4f9; color: #333; }
 
         .time { font-size: 0.9em; color: #888; margin-bottom: 5px; }
 
+        /* --- Chart Section --- */
         .chart-wrapper {
             background: var(--card-bg);
             padding: 25px;
@@ -114,6 +118,7 @@
             padding-bottom: 10px;
             border-bottom: 1px solid var(--shadow-color);
         }
+        .chart-header h3 { margin: 0; font-size: 1.2em; }
     </style>
 </head>
 <body>
@@ -124,30 +129,30 @@
     <div class="dashboard">
         <div class="card">
             <h3>DOWNLOAD</h3>
-            <div class="value download">{{ latest_data.download if latest_data else '0' }} <span style="font-size: 0.5em">Mbps</span></div>
+            <div class="value download">{{ latest_data.download if latest_data else '0' }} <span class="unit">Mbps</span></div>
         </div>
         <div class="card">
             <h3>UPLOAD</h3>
-            <div class="value upload">{{ latest_data.upload if latest_data else '0' }} <span style="font-size: 0.5em">Mbps</span></div>
+            <div class="value upload">{{ latest_data.upload if latest_data else '0' }} <span class="unit">Mbps</span></div>
         </div>
         <div class="card">
             <h3>LATENCY</h3>
-            <div class="value ping">{{ latest_data.ping if latest_data else '0' }} <span style="font-size: 0.5em">ms</span></div>
+            <div class="value ping">{{ latest_data.ping if latest_data else '0' }} <span class="unit">ms</span></div>
         </div>
     </div>
 
-    <div class="time" id="lastCheck">
-        {% if latest_data %}Zuletzt geprüft: {{ latest_data.timestamp }}{% else %}Noch keine Messungen vorhanden.{% endif %}
+    <div class="time">
+        {% if latest_data %}Last checked: {{ latest_data.timestamp }}{% else %}No measurements yet.{% endif %}
     </div>
 
     <button id="run-test-btn" class="btn btn-primary-large" onclick="runTest()">
-        <i class="fas fa-play"></i> Test jetzt starten
+        <i class="fas fa-play"></i> Run Test Now
     </button>
 
     <div class="chart-wrapper">
         <div class="chart-header">
-            <h3>Verlauf (24h)</h3>
-            <a href="/api/download-csv" class="btn btn-secondary-sm"><i class="fas fa-file-csv"></i> CSV Export</a>
+            <h3>24h History</h3>
+            <a href="/api/download-csv" class="btn btn-secondary-sm"><i class="fas fa-download"></i> Download CSV</a>
         </div>
         <canvas id="speedChart"></canvas>
     </div>
@@ -163,7 +168,10 @@
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'enabled' : 'disabled');
             updateDarkModeButton();
-            if(window.myChart) { window.myChart.destroy(); loadChart(); }
+            if(window.myChart) {
+                window.myChart.destroy();
+                loadChart();
+            }
         }
 
         function updateDarkModeButton() {
@@ -171,30 +179,39 @@
             if (btn) btn.innerHTML = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
         }
 
-        // --- VERBESSERTE TEST-FUNKTION (Mit Sperre) ---
+        // --- SPEEDTEST EXECUTION (With robust lock & timeout) ---
         async function runTest() {
             const btn = document.getElementById('run-test-btn');
 
-            // 1. Button sofort sperren
+            // 1. Lock the button immediately
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Messung läuft... Bitte warten...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running... please wait';
+
+            // 2. Safety fallback: If the backend hangs, reload after 45 seconds anyway
+            const fallbackTimer = setTimeout(() => {
+                console.log("Test took too long. Reloading to reset state.");
+                window.location.reload();
+            }, 45000);
 
             try {
-                // 2. Warten, bis der Server antwortet (kann 15-30 Sek dauern)
+                // 3. Wait for the server to finish the real test
                 const response = await fetch('/api/run-test', { method: 'POST' });
 
                 if (response.ok) {
-                    // 3. Wenn fertig: Seite neu laden
-                    window.location.reload();
+                    clearTimeout(fallbackTimer); // Cancel the fallback
+                    console.log("Test finished, reloading data...");
+                    window.location.reload(); // Refresh to show new data
                 } else {
-                    throw new Error("Server Fehler");
+                    throw new Error("Server responded with an error.");
                 }
             } catch (error) {
-                console.error("Fehler:", error);
-                alert("Der Speedtest konnte nicht abgeschlossen werden. Bitte versuche es in einer Minute erneut.");
-                // Button bei Fehler wieder freigeben
+                clearTimeout(fallbackTimer);
+                console.error("Test Error:", error);
+                alert("The test could not be completed. You might be rate-limited by M-Lab. Please wait a few minutes.");
+
+                // Unlock button on error
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-play"></i> Test jetzt starten';
+                btn.innerHTML = '<i class="fas fa-play"></i> Run Test Now';
             }
         }
 
@@ -205,10 +222,10 @@
                 const result = await response.json();
                 const data = result.data;
 
-                // Zeitkorrektur für Berlin / Lokalzeit
+                // Format time correctly (Local timezone)
                 const labels = data.map(item => {
                     let date = new Date(item.timestamp);
-                    return date.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
+                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 });
 
                 const ctx = document.getElementById('speedChart').getContext('2d');
@@ -222,7 +239,7 @@
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Download (Mbps)',
+                                label: 'Download',
                                 data: data.map(item => item.download),
                                 borderColor: '#28a745',
                                 backgroundColor: 'rgba(40, 167, 69, 0.1)',
@@ -230,7 +247,7 @@
                                 tension: 0.3
                             },
                             {
-                                label: 'Upload (Mbps)',
+                                label: 'Upload',
                                 data: data.map(item => item.upload),
                                 borderColor: '#007bff',
                                 backgroundColor: 'rgba(0, 123, 255, 0.1)',
@@ -242,15 +259,31 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { labels: { color: chartTextColor } } },
+                        color: chartTextColor,
+                        plugins: {
+                            legend: { labels: { color: chartTextColor } }
+                        },
                         scales: {
-                            y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor } },
-                            x: { grid: { display: false }, ticks: { color: chartTextColor, maxTicksLimit: 12 } }
-                        }
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: chartGridColor },
+                                ticks: { color: chartTextColor }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: chartTextColor,
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 12
+                                }
+                            }
+                        },
+                        elements: { point: { radius: 3, hoverRadius: 6 } }
                     }
                 });
             } catch (error) {
-                console.error("Fehler beim Laden des Charts:", error);
+                console.error("Error loading history:", error);
             }
         }
 
