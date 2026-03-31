@@ -1,7 +1,11 @@
 FROM python:3.11-alpine
-RUN apk add --no-cache curl bash
-RUN curl -Lo /usr/local/bin/ndt7-client https://github.com/m-lab/ndt7-client-go/releases/download/v0.7.0/ndt7-client-go_0.7.0_linux_amd64 && \
+
+RUN apk add --no-cache curl bash tar
+
+
+RUN curl -L https://github.com/m-lab/ndt7-client-go/releases/download/v0.7.0/ndt7-client_0.7.0_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin/ ndt7-client && \
     chmod +x /usr/local/bin/ndt7-client
+
 WORKDIR /code
 COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
