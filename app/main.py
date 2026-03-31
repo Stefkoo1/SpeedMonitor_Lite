@@ -33,7 +33,7 @@ def scheduler_task():
 async def lifespan(app: FastAPI):
     """Starts and stops background processes alongside the web server."""
     scheduler = BackgroundScheduler()
-    scheduler.add_job(scheduler_task, "interval", seconds=60)
+    scheduler.add_job(scheduler_task, "interval", minutes=60)
     scheduler.start()
 
     yield
