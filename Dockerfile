@@ -1,9 +1,15 @@
+
+FROM golang:1.21-alpine AS builder
+RUN apk add --no-cache git
+RUN go install github.com/m-lab/ndt7-client-go/cmd/ndt7-client@latest
+
+
 FROM python:3.11-alpine
 RUN apk add --no-cache curl bash
 
-# Wir laden die Binärdatei direkt (kein entpacken nötig!)
-RUN curl -L -o /usr/local/bin/ndt7-client https://github.com/m-lab/ndt7-client-go/releases/download/v0.7.0/ndt7-client-go_0.7.0_linux_amd64 && \
-    chmod +x /usr/local/bin/ndt7-client
+
+COPY --from=builder /go/bin/ndt7-client /usr/local/bin/ndt7-client
+RUN chmod +x /usr/local/bin/ndt7-client
 
 WORKDIR /code
 COPY ./requirements.txt /code/requirements.txt

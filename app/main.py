@@ -9,7 +9,7 @@ import io
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from datetime import datetime
-from app.speedtest import run_speedtest
+from app.speedtest import run_speedtest, init_db
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Speedtest-Lite", lifespan=lifespan)
+init_db()
 
 
 def get_latest_result():
