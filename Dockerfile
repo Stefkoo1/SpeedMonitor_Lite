@@ -1,9 +1,8 @@
 FROM python:3.11-alpine
-
 RUN apk add --no-cache curl bash tar
 
-
-RUN curl -L https://github.com/m-lab/ndt7-client-go/releases/download/v0.7.0/ndt7-client_0.7.0_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin/ ndt7-client && \
+# Korrigierter Link (mit -go im Dateinamen)
+RUN curl -L https://github.com/m-lab/ndt7-client-go/releases/download/v0.7.0/ndt7-client-go_0.7.0_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin/ ndt7-client && \
     chmod +x /usr/local/bin/ndt7-client
 
 WORKDIR /code
