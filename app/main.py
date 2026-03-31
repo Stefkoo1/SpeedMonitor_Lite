@@ -31,10 +31,17 @@ def get_latest_result():
     conn.close()
     return latest
 
+
 @app.get("/", response_class=HTMLResponse)
 async def read_dashboard(request: Request):
     latest_data = get_latest_result()
-    return templates.TemplateResponse("index.html", {"request": request, "latest_data": latest_data})
+    # Wandle das SQLite-Row-Objekt in ein echtes Dictionary um, falls Daten vorhanden sind
+    context_data = dict(latest_data) if latest_data else None
+
+    return templates.TemplateResponse(
+        name="index.html",
+        context={"request": request, "latest_data": context_data}
+    )
 
 @app.post("/api/run-test")
 async def api_run_test():
