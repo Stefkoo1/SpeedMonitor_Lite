@@ -26,16 +26,18 @@ def init_db():
 
 def run_speedtest():
     init_db()
-    print(f"[{datetime.now()}] Starte  Speedtest...")
+    print(f"[{datetime.now()}] Starte echten Speedtest...")
 
-    download, upload, ping = 0, 0, 0
+    download, upload, ping = 0.0, 0.0, 0.0
 
     try:
+        # check=False verhindert Absturz bei M-Lab Fehler (Exit Code 1)
         result = subprocess.run(
             ["ndt7-client", "-format=json"],
             capture_output=True,
             text=True,
-            timeout=90
+            timeout=90,
+            check=False
         )
 
         for line in result.stdout.splitlines():
@@ -43,9 +45,9 @@ def run_speedtest():
             try:
                 data = json.loads(line)
 
-
+                # M-Lab Sperre (Rate Limit) erkennen
                 if 'Value' in data and isinstance(data['Value'], dict) and 'Failure' in data['Value']:
-                    print(f"M-Lab ERROR: {data['Value']['Failure']}")
+                    print(f"M-Lab INFO: {data['Value']['Failure']}")
                     continue
 
                 if 'Download' in data and 'Throughput' in data['Download']:
@@ -54,7 +56,6 @@ def run_speedtest():
                     ping = round(data['Download']['Latency']['Value'], 2)
             except:
                 continue
-
 
         if download > 0:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -66,9 +67,18 @@ def run_speedtest():
             """, (timestamp, download, upload, ping))
             conn.commit()
             conn.close()
-            print(f"[{timestamp}] Test erfolgreich gespeichert.")
-            return True
-    except Exception as e:
-        print(f"Test abgebrochen oder Fehler: {e}")
+            print(f"[{timestamp}] Test erfolgreich: DL {download}, UL {upload}")
+            return {"status": "success", "data": {"download": download, "upload": upload, "ping": ping}}
+        else:
+            msg = "Keine Messdaten erhalten (evtl. M-Lab Sperre aktiv)."
+            print(f"[{datetime.now()}] Test fehlgeschlagen: {msg}")
+            return {"status": "error", "message": msg}
 
-    return False
+    except subprocess.TimeoutExpired:
+        msg = "Timeout beim Speedtest (länger als 90s)."
+        print(f"[{datetime.now()}] {msg}")
+        return {"status": "error", "message": msg}
+    except Exception as e:
+        msg = str(e)
+        print(f"[{datetime.now()}] Unerwarteter Fehler: {msg}")
+        return {"status": "error", "message": msg}

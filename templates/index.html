@@ -79,7 +79,7 @@
 
         /* Locked state styling */
         .btn-primary-large:disabled {
-            background-color: #6c757d;
+            background-color: #6c757d !important;
             cursor: not-allowed;
             transform: none;
             opacity: 0.7;
@@ -179,37 +179,31 @@
             if (btn) btn.innerHTML = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
         }
 
-        // --- SPEEDTEST EXECUTION (With robust lock & timeout) ---
+        // --- SPEEDTEST EXECUTION ---
         async function runTest() {
             const btn = document.getElementById('run-test-btn');
 
-            // 1. Lock the button immediately
+            // Lock the button immediately
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running... please wait';
 
-            // 2. Safety fallback: If the backend hangs, reload after 45 seconds anyway
-            const fallbackTimer = setTimeout(() => {
-                console.log("Test took too long. Reloading to reset state.");
-                window.location.reload();
-            }, 45000);
-
             try {
-                // 3. Wait for the server to finish the real test
+                // Fetch returns response, even if backend throws 400 error status
                 const response = await fetch('/api/run-test', { method: 'POST' });
+                const result = await response.json();
 
-                if (response.ok) {
-                    clearTimeout(fallbackTimer); // Cancel the fallback
+                if (response.ok && result.status === "success") {
                     console.log("Test finished, reloading data...");
                     window.location.reload(); // Refresh to show new data
                 } else {
-                    throw new Error("Server responded with an error.");
+                    // Server reported an error (like M-Lab block)
+                    throw new Error(result.message || "Unknown server error");
                 }
             } catch (error) {
-                clearTimeout(fallbackTimer);
                 console.error("Test Error:", error);
-                alert("The test could not be completed. You might be rate-limited by M-Lab. Please wait a few minutes.");
+                alert("Measurement failed: " + error.message + "\nPlease wait a bit before trying again.");
 
-                // Unlock button on error
+                // Unlock button on error so user can try again later
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-play"></i> Run Test Now';
             }
