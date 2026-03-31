@@ -1,5 +1,5 @@
 
-FROM golang:1.21-alpine AS builder
+FROM golang:alpine AS builder
 RUN apk add --no-cache git
 RUN go install github.com/m-lab/ndt7-client-go/cmd/ndt7-client@latest
 
