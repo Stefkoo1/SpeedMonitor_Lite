@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpeedMonitor-Lite</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- CSS Variables for Light/Dark themes --- */
+        /* --- CSS Variablen für Themes --- */
         :root {
             --bg-color: #f4f4f9;
             --text-color: #333;
@@ -33,7 +34,6 @@
             margin: 0;
         }
 
-        /* --- Dark Mode Toggle (Top Right) --- */
         .floating-top-right {
             position: absolute;
             top: 20px;
@@ -49,7 +49,7 @@
         .card {
             background: var(--card-bg);
             padding: 25px;
-            min-width: 200px;
+            min-width: 220px;
             border-radius: 12px;
             box-shadow: 0 4px 10px var(--shadow-color);
             transition: transform 0.2s;
@@ -61,9 +61,9 @@
         .upload { color: #007bff; }
         .ping { color: #bb86fc; }
 
-        /* --- Buttons --- */
         .btn { border: none; cursor: pointer; transition: 0.3s; text-decoration: none; display: inline-block; color: white; font-weight: bold; }
 
+        /* Der Haupt-Button */
         .btn-primary-large {
             padding: 16px 45px;
             font-size: 1.3em;
@@ -71,9 +71,18 @@
             border-radius: 30px;
             box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
             margin: 25px 0;
+            min-width: 300px;
         }
-        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.05); }
-        .btn-primary-large:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
+        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.02); }
+
+        /* Zustand wenn gesperrt (ausgegraut) */
+        .btn-primary-large:disabled {
+            background-color: #6c757d !important;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
 
         .btn-secondary-sm {
             padding: 8px 16px;
@@ -81,14 +90,12 @@
             background-color: #6c757d;
             border-radius: 6px;
         }
-        .btn-secondary-sm:hover { background-color: #5a6268; }
 
-        .btn-darkmode { background-color: #333; color: white; box-shadow: 0 4px 6px var(--shadow-color); }
+        .btn-darkmode { background-color: #333; color: white; }
         body.dark-mode .btn-darkmode { background-color: #f4f4f9; color: #333; }
 
         .time { font-size: 0.9em; color: #888; margin-bottom: 5px; }
 
-        /* --- Chart Section --- */
         .chart-wrapper {
             background: var(--card-bg);
             padding: 25px;
@@ -96,7 +103,7 @@
             box-shadow: 0 4px 10px var(--shadow-color);
             max-width: 1000px;
             margin: 0 auto 50px auto;
-            height: 400px; /* Fixed height for better layout */
+            height: 400px;
         }
 
         .chart-header {
@@ -107,7 +114,6 @@
             padding-bottom: 10px;
             border-bottom: 1px solid var(--shadow-color);
         }
-        .chart-header h3 { margin: 0; font-size: 1.2em; }
     </style>
 </head>
 <body>
@@ -115,39 +121,36 @@
 
     <h1>SpeedMonitor-Lite</h1>
 
-    {% if latest_data %}
-        <div class="dashboard">
-            <div class="card">
-                <h3>DOWNLOAD</h3>
-                <div class="value download">{{ latest_data.download }} Mbps</div>
-            </div>
-            <div class="card">
-                <h3>UPLOAD</h3>
-                <div class="value upload">{{ latest_data.upload }} Mbps</div>
-            </div>
-            <div class="card">
-                <h3>LATENCY</h3>
-                <div class="value ping">{{ latest_data.ping }} ms</div>
-            </div>
+    <div class="dashboard">
+        <div class="card">
+            <h3>DOWNLOAD</h3>
+            <div class="value download">{{ latest_data.download if latest_data else '0' }} <span style="font-size: 0.5em">Mbps</span></div>
         </div>
-        <div class="time">Last check: {{ latest_data.timestamp }}</div>
-
-        <button class="btn btn-primary-large" onclick="runTest()">Run Test Now</button>
-
-        <div class="chart-wrapper">
-            <div class="chart-header">
-                <h3>24h History</h3>
-                <a href="/api/download-csv" class="btn btn-secondary-sm">⬇️ Download CSV</a>
-            </div>
-            <canvas id="speedChart"></canvas>
+        <div class="card">
+            <h3>UPLOAD</h3>
+            <div class="value upload">{{ latest_data.upload if latest_data else '0' }} <span style="font-size: 0.5em">Mbps</span></div>
         </div>
-
-    {% else %}
-        <div style="margin-top: 100px;">
-            <p>No data found. Please perform your first measurement.</p>
-            <button class="btn btn-primary-large" onclick="runTest()">Run Test Now</button>
+        <div class="card">
+            <h3>LATENCY</h3>
+            <div class="value ping">{{ latest_data.ping if latest_data else '0' }} <span style="font-size: 0.5em">ms</span></div>
         </div>
-    {% endif %}
+    </div>
+
+    <div class="time" id="lastCheck">
+        {% if latest_data %}Zuletzt geprüft: {{ latest_data.timestamp }}{% else %}Noch keine Messungen vorhanden.{% endif %}
+    </div>
+
+    <button id="run-test-btn" class="btn btn-primary-large" onclick="runTest()">
+        <i class="fas fa-play"></i> Test jetzt starten
+    </button>
+
+    <div class="chart-wrapper">
+        <div class="chart-header">
+            <h3>Verlauf (24h)</h3>
+            <a href="/api/download-csv" class="btn btn-secondary-sm"><i class="fas fa-file-csv"></i> CSV Export</a>
+        </div>
+        <canvas id="speedChart"></canvas>
+    </div>
 
     <script>
         // --- Theme Management ---
@@ -160,47 +163,52 @@
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'enabled' : 'disabled');
             updateDarkModeButton();
-
-            // Redraw chart with new colors
-            if(window.myChart) {
-                window.myChart.destroy();
-                loadChart();
-            }
+            if(window.myChart) { window.myChart.destroy(); loadChart(); }
         }
 
         function updateDarkModeButton() {
             const btn = document.getElementById('darkModeBtn');
-            if (btn) btn.innerText = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
+            if (btn) btn.innerHTML = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
         }
 
-        // --- Speedtest Execution ---
+        // --- VERBESSERTE TEST-FUNKTION (Mit Sperre) ---
         async function runTest() {
-            const btn = document.querySelector('.btn-primary-large');
-            btn.innerText = "Testing... please wait";
+            const btn = document.getElementById('run-test-btn');
+
+            // 1. Button sofort sperren
             btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Messung läuft... Bitte warten...';
 
             try {
+                // 2. Warten, bis der Server antwortet (kann 15-30 Sek dauern)
                 const response = await fetch('/api/run-test', { method: 'POST' });
-                const result = await response.json();
-                if(result.status === "success") window.location.reload();
+
+                if (response.ok) {
+                    // 3. Wenn fertig: Seite neu laden
+                    window.location.reload();
+                } else {
+                    throw new Error("Server Fehler");
+                }
             } catch (error) {
-                console.error("Error:", error);
-                alert("Test failed!");
-                btn.innerText = "Run Test Now";
+                console.error("Fehler:", error);
+                alert("Der Speedtest konnte nicht abgeschlossen werden. Bitte versuche es in einer Minute erneut.");
+                // Button bei Fehler wieder freigeben
                 btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Test jetzt starten';
             }
         }
 
-        // --- Chart logic with "Bonus" cleaning ---
+        // --- Chart logic ---
         async function loadChart() {
             try {
                 const response = await fetch('/api/history');
                 const result = await response.json();
                 const data = result.data;
 
+                // Zeitkorrektur für Berlin / Lokalzeit
                 const labels = data.map(item => {
                     let date = new Date(item.timestamp);
-                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    return date.toLocaleTimeString('de-DE', {hour: '2-digit', minute:'2-digit'});
                 });
 
                 const ctx = document.getElementById('speedChart').getContext('2d');
@@ -214,48 +222,35 @@
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Download',
+                                label: 'Download (Mbps)',
                                 data: data.map(item => item.download),
                                 borderColor: '#28a745',
                                 backgroundColor: 'rgba(40, 167, 69, 0.1)',
                                 fill: true,
-                                tension: 0.4
+                                tension: 0.3
                             },
                             {
-                                label: 'Upload',
+                                label: 'Upload (Mbps)',
                                 data: data.map(item => item.upload),
                                 borderColor: '#007bff',
                                 backgroundColor: 'rgba(0, 123, 255, 0.1)',
                                 fill: true,
-                                tension: 0.4
+                                tension: 0.3
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        color: chartTextColor,
+                        plugins: { legend: { labels: { color: chartTextColor } } },
                         scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: chartGridColor },
-                                ticks: { color: chartTextColor }
-                            },
-                            x: {
-                                grid: { display: false },
-                                ticks: {
-                                    color: chartTextColor,
-                                    maxRotation: 0,
-                                    autoSkip: true,
-                                    maxTicksLimit: 10
-                                }
-                            }
-                        },
-                        elements: { point: { radius: 3, hoverRadius: 6 } }
+                            y: { grid: { color: chartGridColor }, ticks: { color: chartTextColor } },
+                            x: { grid: { display: false }, ticks: { color: chartTextColor, maxTicksLimit: 12 } }
+                        }
                     }
                 });
             } catch (error) {
-                console.error("Error loading history:", error);
+                console.error("Fehler beim Laden des Charts:", error);
             }
         }
 
