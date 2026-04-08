@@ -5,11 +5,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Persists speedtest.db across container restarts
-      - speedtest_data:/code/app
+      # Only persist the database, not the app code
+      - speedtest_data:/code/data
     environment:
       - SPEEDTEST_INTERVAL_MINUTES=60
       - MANUAL_TEST_COOLDOWN_MINUTES=5
+      - DB_PATH=/code/data/speedtest.db
     restart: unless-stopped
 
 volumes:
