@@ -52,9 +52,9 @@ async def read_dashboard(request: Request):
     latest_data = get_latest_result()
     context_data = dict(latest_data) if latest_data else None
     return templates.TemplateResponse(
+        request=request,
         name="index.html",
         context={
-            "request": request,
             "latest_data": context_data,
             "interval_minutes": INTERVAL_MINUTES,
         }
