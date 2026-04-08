@@ -1,0 +1,16 @@
+services:
+  speedmonitor:
+    build: .
+    container_name: speedmonitor-lite
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persists speedtest.db across container restarts
+      - speedtest_data:/code/app
+    environment:
+      - SPEEDTEST_INTERVAL_MINUTES=60
+      - MANUAL_TEST_COOLDOWN_MINUTES=5
+    restart: unless-stopped
+
+volumes:
+  speedtest_data:

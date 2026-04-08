@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,22 +7,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* --- CSS Variables for Light/Dark themes --- */
         :root {
             --bg-color: #f4f4f9;
             --text-color: #333;
             --card-bg: #ffffff;
             --shadow-color: rgba(0,0,0,0.1);
-            --accent-color: #007bff;
+            --border-color: rgba(0,0,0,0.08);
+            --muted-color: #888;
         }
-
         body.dark-mode {
             --bg-color: #121212;
             --text-color: #e0e0e0;
             --card-bg: #1e1e1e;
             --shadow-color: rgba(0,0,0,0.5);
-            --accent-color: #3700b3;
+            --border-color: rgba(255,255,255,0.08);
+            --muted-color: #999;
         }
+
+        *, *::before, *::after { box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -30,11 +32,11 @@
             color: var(--text-color);
             text-align: center;
             padding: 20px;
-            transition: background-color 0.3s, color 0.3s;
             margin: 0;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* --- Dark Mode Toggle (Top Right) --- */
+        /* --- Top-right toggle --- */
         .floating-top-right {
             position: absolute;
             top: 20px;
@@ -45,45 +47,87 @@
             z-index: 100;
         }
 
-        .dashboard { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin: 40px auto 20px auto; max-width: 1100px; }
+        h1 { margin-top: 60px; margin-bottom: 0; font-size: 2em; }
+
+        .subtitle {
+            font-size: 0.85em;
+            color: var(--muted-color);
+            margin-top: 6px;
+        }
+
+        /* --- Cards --- */
+        .dashboard {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 30px auto 10px auto;
+            max-width: 1100px;
+            padding: 0 10px;
+        }
 
         .card {
             background: var(--card-bg);
-            padding: 25px;
-            min-width: 220px;
+            padding: 25px 30px;
+            min-width: 200px;
+            flex: 1 1 180px;
+            max-width: 280px;
             border-radius: 12px;
             box-shadow: 0 4px 10px var(--shadow-color);
             transition: transform 0.2s;
         }
         .card:hover { transform: translateY(-3px); }
+        .card h3 { margin: 0 0 8px 0; font-size: 0.85em; letter-spacing: 1px; color: var(--muted-color); }
 
-        .value { font-size: 2.8em; font-weight: bold; margin-top: 10px; }
+        .value { font-size: 2.6em; font-weight: bold; margin-top: 6px; }
         .download { color: #28a745; }
         .upload { color: #007bff; }
         .ping { color: #bb86fc; }
-        .unit { font-size: 0.4em; color: #888; font-weight: normal; }
+        .unit { font-size: 0.35em; color: var(--muted-color); font-weight: normal; }
+
+        /* --- No-data state --- */
+        .no-data-banner {
+            background: var(--card-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 18px 24px;
+            margin: 10px auto;
+            max-width: 500px;
+            font-size: 0.9em;
+            color: var(--muted-color);
+        }
+        .no-data-banner i { margin-right: 8px; }
 
         /* --- Buttons --- */
-        .btn { border: none; cursor: pointer; transition: 0.3s; text-decoration: none; display: inline-block; color: white; font-weight: bold; }
+        .btn {
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s, opacity 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            color: white;
+            font-weight: bold;
+        }
 
         .btn-primary-large {
             padding: 16px 45px;
-            font-size: 1.3em;
+            font-size: 1.2em;
             background-color: #007bff;
             border-radius: 30px;
             box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-            margin: 25px 0;
+            margin: 20px 0;
             min-width: 280px;
         }
-        .btn-primary-large:hover { background-color: #0056b3; transform: scale(1.05); }
-
-        /* Locked state styling */
+        .btn-primary-large:hover:not(:disabled) { background-color: #0056b3; transform: scale(1.04); }
         .btn-primary-large:disabled {
             background-color: #6c757d !important;
             cursor: not-allowed;
             transform: none;
-            opacity: 0.7;
+            opacity: 0.75;
             box-shadow: none;
+        }
+        .btn-primary-large.cooldown {
+            background-color: #e67e22 !important;
         }
 
         .btn-secondary-sm {
@@ -97,154 +141,264 @@
         .btn-darkmode { background-color: #333; color: white; box-shadow: 0 4px 6px var(--shadow-color); }
         body.dark-mode .btn-darkmode { background-color: #f4f4f9; color: #333; }
 
-        .time { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        /* --- Cooldown progress bar --- */
+        .cooldown-bar-wrap {
+            max-width: 280px;
+            margin: -10px auto 10px auto;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+        .cooldown-bar-fill {
+            height: 100%;
+            background: #e67e22;
+            border-radius: 2px;
+            transition: width 1s linear;
+        }
 
-        /* --- Chart Section --- */
+        .time { font-size: 0.85em; color: var(--muted-color); margin: 4px 0 16px 0; }
+
+        /* --- Chart --- */
         .chart-wrapper {
             background: var(--card-bg);
             padding: 25px;
             border-radius: 12px;
             box-shadow: 0 4px 10px var(--shadow-color);
             max-width: 1000px;
-            margin: 0 auto 50px auto;
-            height: 400px;
+            margin: 10px auto 50px auto;
+            height: 380px;
         }
-
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--shadow-color);
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .chart-header h3 { margin: 0; font-size: 1.2em; }
+        .chart-header h3 { margin: 0; font-size: 1.1em; }
+
+        /* --- Responsive --- */
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; margin-top: 70px; }
+            .floating-top-right { top: 12px; right: 12px; padding: 8px 14px; font-size: 0.8em; }
+            .dashboard { gap: 12px; }
+            .card { min-width: 140px; padding: 18px 14px; }
+            .value { font-size: 2em; }
+            .btn-primary-large { min-width: 200px; font-size: 1em; padding: 14px 30px; }
+            .chart-wrapper { height: 280px; padding: 15px; }
+            .chart-header { flex-direction: column; align-items: flex-start; }
+        }
     </style>
 </head>
 <body>
     <button class="btn btn-darkmode floating-top-right" onclick="toggleDarkMode()" id="darkModeBtn">🌙 Dark Mode</button>
 
     <h1>SpeedMonitor-Lite</h1>
+    <p class="subtitle">Automatischer Test alle {{ interval_minutes }} Minuten</p>
 
     <div class="dashboard">
         <div class="card">
             <h3>DOWNLOAD</h3>
-            <div class="value download">{{ latest_data.download if latest_data else '0' }} <span class="unit">Mbps</span></div>
+            <div class="value download">
+                {{ latest_data.download if latest_data else '—' }}
+                {% if latest_data %}<span class="unit">Mbps</span>{% endif %}
+            </div>
         </div>
         <div class="card">
             <h3>UPLOAD</h3>
-            <div class="value upload">{{ latest_data.upload if latest_data else '0' }} <span class="unit">Mbps</span></div>
+            <div class="value upload">
+                {{ latest_data.upload if latest_data else '—' }}
+                {% if latest_data %}<span class="unit">Mbps</span>{% endif %}
+            </div>
         </div>
         <div class="card">
             <h3>LATENCY</h3>
-            <div class="value ping">{{ latest_data.ping if latest_data else '0' }} <span class="unit">ms</span></div>
+            <div class="value ping">
+                {{ latest_data.ping if latest_data else '—' }}
+                {% if latest_data %}<span class="unit">ms</span>{% endif %}
+            </div>
         </div>
     </div>
 
+    {% if not latest_data %}
+    <div class="no-data-banner">
+        <i class="fas fa-info-circle"></i>
+        Noch keine Messdaten vorhanden. Klicke auf <strong>Run Test Now</strong> um den ersten Test zu starten.
+    </div>
+    {% endif %}
+
     <div class="time">
-        {% if latest_data %}Last checked: {{ latest_data.timestamp }}{% else %}No measurements yet.{% endif %}
+        {% if latest_data %}Letzte Messung: {{ latest_data.timestamp }}{% endif %}
     </div>
 
     <button id="run-test-btn" class="btn btn-primary-large" onclick="runTest()">
         <i class="fas fa-play"></i> Run Test Now
     </button>
 
+    <div class="cooldown-bar-wrap" id="cooldown-bar-wrap">
+        <div class="cooldown-bar-fill" id="cooldown-bar-fill"></div>
+    </div>
+
     <div class="chart-wrapper">
         <div class="chart-header">
-            <h3>24h History</h3>
-            <a href="/api/download-csv" class="btn btn-secondary-sm"><i class="fas fa-download"></i> Download CSV</a>
+            <h3><i class="fas fa-chart-line"></i> 24h History</h3>
+            <a href="/api/download-csv" class="btn btn-secondary-sm">
+                <i class="fas fa-download"></i> Download CSV
+            </a>
         </div>
         <canvas id="speedChart"></canvas>
     </div>
 
     <script>
-        // --- Theme Management ---
+        // --- Theme ---
         if (localStorage.getItem('darkMode') === 'enabled') {
             document.body.classList.add('dark-mode');
-            updateDarkModeButton();
         }
+        updateDarkModeButton();
 
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'enabled' : 'disabled');
             updateDarkModeButton();
-            if(window.myChart) {
-                window.myChart.destroy();
-                loadChart();
-            }
+            if (window.myChart) { window.myChart.destroy(); loadChart(); }
         }
-
         function updateDarkModeButton() {
             const btn = document.getElementById('darkModeBtn');
             if (btn) btn.innerHTML = document.body.classList.contains('dark-mode') ? "☀️ Light Mode" : "🌙 Dark Mode";
         }
 
-        // --- SPEEDTEST EXECUTION ---
-        async function runTest() {
-            const btn = document.getElementById('run-test-btn');
+        // --- Cooldown UI ---
+        let _cooldownInterval = null;
+        let _cooldownTotal = 0;
 
-            // Lock the button immediately
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running... please wait';
-
+        async function checkCooldown() {
             try {
-                // Fetch returns response, even if backend throws 400 error status
-                const response = await fetch('/api/run-test', { method: 'POST' });
-                const result = await response.json();
-
-                if (response.ok && result.status === "success") {
-                    console.log("Test finished, reloading data...");
-                    window.location.reload(); // Refresh to show new data
-                } else {
-                    // Server reported an error (like M-Lab block)
-                    throw new Error(result.message || "Unknown server error");
+                const res = await fetch('/api/status');
+                const status = await res.json();
+                if (status.cooldown_active) {
+                    _cooldownTotal = status.cooldown_total_seconds;
+                    startCooldownUI(status.cooldown_remaining_seconds);
                 }
-            } catch (error) {
-                console.error("Test Error:", error);
-                alert("Measurement failed: " + error.message + "\nPlease wait a bit before trying again.");
-
-                // Unlock button on error so user can try again later
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-play"></i> Run Test Now';
+            } catch (e) {
+                console.warn("Status check failed:", e);
             }
         }
 
-        // --- Chart logic ---
+        function startCooldownUI(remainingSeconds) {
+            const btn = document.getElementById('run-test-btn');
+            const barWrap = document.getElementById('cooldown-bar-wrap');
+            const barFill = document.getElementById('cooldown-bar-fill');
+
+            btn.disabled = true;
+            btn.classList.add('cooldown');
+            barWrap.style.display = 'block';
+
+            if (_cooldownInterval) clearInterval(_cooldownInterval);
+
+            let remaining = remainingSeconds;
+            updateCooldownButton(remaining);
+            updateCooldownBar(remaining);
+
+            _cooldownInterval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(_cooldownInterval);
+                    btn.disabled = false;
+                    btn.classList.remove('cooldown');
+                    btn.innerHTML = '<i class="fas fa-play"></i> Run Test Now';
+                    barWrap.style.display = 'none';
+                    barFill.style.width = '0%';
+                } else {
+                    updateCooldownButton(remaining);
+                    updateCooldownBar(remaining);
+                }
+            }, 1000);
+        }
+
+        function updateCooldownButton(seconds) {
+            const btn = document.getElementById('run-test-btn');
+            const m = Math.floor(seconds / 60);
+            const s = String(seconds % 60).padStart(2, '0');
+            const timeStr = m > 0 ? `${m}:${s} min` : `${seconds}s`;
+            btn.innerHTML = `<i class="fas fa-clock"></i> Warte ${timeStr}`;
+        }
+
+        function updateCooldownBar(remaining) {
+            const fill = document.getElementById('cooldown-bar-fill');
+            const pct = (_cooldownTotal > 0) ? (remaining / _cooldownTotal * 100) : 0;
+            fill.style.width = pct + '%';
+        }
+
+        // --- Run Test ---
+        async function runTest() {
+            const btn = document.getElementById('run-test-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Läuft... bitte warten';
+
+            try {
+                const response = await fetch('/api/run-test', { method: 'POST' });
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    window.location.reload();
+                } else if (response.status === 429 && result.status === 'cooldown') {
+                    _cooldownTotal = result.remaining;
+                    startCooldownUI(result.remaining);
+                } else {
+                    throw new Error(result.message || 'Unbekannter Fehler');
+                }
+            } catch (error) {
+                if (error.message && error.message.includes('Warte')) {
+                    // cooldown already handled above
+                } else {
+                    alert('Messung fehlgeschlagen:\n' + error.message);
+                    btn.disabled = false;
+                    btn.classList.remove('cooldown');
+                    btn.innerHTML = '<i class="fas fa-play"></i> Run Test Now';
+                }
+            }
+        }
+
+        // --- Chart ---
         async function loadChart() {
             try {
                 const response = await fetch('/api/history');
                 const result = await response.json();
                 const data = result.data;
 
-                // Format time correctly (Local timezone)
                 const labels = data.map(item => {
-                    let date = new Date(item.timestamp);
-                    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const d = new Date(item.timestamp);
+                    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 });
 
-                const ctx = document.getElementById('speedChart').getContext('2d');
                 const isDark = document.body.classList.contains('dark-mode');
-                const chartTextColor = isDark ? '#e0e0e0' : '#666';
-                const chartGridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                const textColor = isDark ? '#e0e0e0' : '#666';
+                const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
 
+                const ctx = document.getElementById('speedChart').getContext('2d');
                 window.myChart = new Chart(ctx, {
                     type: 'line',
                     data: {
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Download',
-                                data: data.map(item => item.download),
+                                label: 'Download (Mbps)',
+                                data: data.map(i => i.download),
                                 borderColor: '#28a745',
-                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                backgroundColor: 'rgba(40, 167, 69, 0.08)',
                                 fill: true,
                                 tension: 0.3
                             },
                             {
-                                label: 'Upload',
-                                data: data.map(item => item.upload),
+                                label: 'Upload (Mbps)',
+                                data: data.map(i => i.upload),
                                 borderColor: '#007bff',
-                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                backgroundColor: 'rgba(0, 123, 255, 0.08)',
                                 fill: true,
                                 tension: 0.3
                             }
@@ -253,20 +407,19 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        color: chartTextColor,
                         plugins: {
-                            legend: { labels: { color: chartTextColor } }
+                            legend: { labels: { color: textColor } }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: { color: chartGridColor },
-                                ticks: { color: chartTextColor }
+                                grid: { color: gridColor },
+                                ticks: { color: textColor }
                             },
                             x: {
                                 grid: { display: false },
                                 ticks: {
-                                    color: chartTextColor,
+                                    color: textColor,
                                     maxRotation: 0,
                                     autoSkip: true,
                                     maxTicksLimit: 12
@@ -276,12 +429,15 @@
                         elements: { point: { radius: 3, hoverRadius: 6 } }
                     }
                 });
-            } catch (error) {
-                console.error("Error loading history:", error);
+            } catch (e) {
+                console.error("Chart Fehler:", e);
             }
         }
 
-        window.onload = loadChart;
+        window.onload = async function () {
+            await checkCooldown();
+            loadChart();
+        };
     </script>
 </body>
 </html>

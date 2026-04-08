@@ -1,37 +1,17 @@
 import subprocess
 import json
 import sqlite3
-import os
 from datetime import datetime
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "speedtest.db")
-
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            download REAL,
-            upload REAL,
-            ping REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
+from app.database import DB_PATH, init_db
 
 
 def run_speedtest():
     init_db()
-    print(f"[{datetime.now()}] Starte echten Speedtest...")
+    print(f"[{datetime.now()}] Starte Speedtest...")
 
     download, upload, ping = 0.0, 0.0, 0.0
 
     try:
-        # check=False verhindert Absturz bei M-Lab Fehler (Exit Code 1)
         result = subprocess.run(
             ["ndt7-client", "-format=json"],
             capture_output=True,
@@ -41,41 +21,39 @@ def run_speedtest():
         )
 
         for line in result.stdout.splitlines():
-            if not line.strip(): continue
+            if not line.strip():
+                continue
             try:
                 data = json.loads(line)
-
-                # M-Lab Sperre (Rate Limit) erkennen
                 if 'Value' in data and isinstance(data['Value'], dict) and 'Failure' in data['Value']:
                     print(f"M-Lab INFO: {data['Value']['Failure']}")
                     continue
-
                 if 'Download' in data and 'Throughput' in data['Download']:
                     download = round(data['Download']['Throughput']['Value'], 2)
                     upload = round(data['Upload']['Throughput']['Value'], 2)
                     ping = round(data['Download']['Latency']['Value'], 2)
-            except:
+            except Exception:
                 continue
 
         if download > 0:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO results (timestamp, download, upload, ping)
-                VALUES (?, ?, ?, ?)
-            """, (timestamp, download, upload, ping))
+            cursor.execute(
+                "INSERT INTO results (timestamp, download, upload, ping) VALUES (?, ?, ?, ?)",
+                (timestamp, download, upload, ping)
+            )
             conn.commit()
             conn.close()
-            print(f"[{timestamp}] Test erfolgreich: DL {download}, UL {upload}")
+            print(f"[{timestamp}] Test OK: DL={download} Mbps, UL={upload} Mbps, Ping={ping} ms")
             return {"status": "success", "data": {"download": download, "upload": upload, "ping": ping}}
         else:
-            msg = "Keine Messdaten erhalten (evtl. M-Lab Sperre aktiv)."
-            print(f"[{datetime.now()}] Test fehlgeschlagen: {msg}")
+            msg = "Keine Messdaten erhalten (M-Lab Rate Limit aktiv oder keine Verbindung)."
+            print(f"[{datetime.now()}] {msg}")
             return {"status": "error", "message": msg}
 
     except subprocess.TimeoutExpired:
-        msg = "Timeout beim Speedtest (länger als 90s)."
+        msg = "Speedtest Timeout (>90s)."
         print(f"[{datetime.now()}] {msg}")
         return {"status": "error", "message": msg}
     except Exception as e:
